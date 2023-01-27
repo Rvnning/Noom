@@ -1,5 +1,5 @@
 import http from "http";
-import WebSocket from "ws";
+import SocketIO from "socket.io";
 import express from "express";
 
 const app = express();
@@ -12,18 +12,52 @@ app.get("/*", (_, res) => res.redirect("/"));
 
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 
-const server = http.createServer(app);
+const httpServer = http.createServer(app);
+const wsServer = SocketIO(httpServer);
 
-const wss = new WebSocket.Server({ server });
-
-const sockets = [];
-
-wss.on("connection", (socket) => {
-  sockets.push(socket);
-  console.log("Connected to Browser");
-  socket.on("close", () => console.log("Discconected to Browser"));
-  socket.on("message", (message) => {
-    sockets.forEach((aSocket) => aSocket.send(message.toString("utf8")));
+wsServer.on("connection", (socket) => {
+  socket["nickname"] = "Anon";
+  socket.onAny((event) => {
+    console.log(`Socket Event:${event}`);
+  });
+  socket.on("enter_room", (roomName, nickname, done) => {
+    socket["nickname"] = nickname;
+    socket.join(roomName);
+    done();
+    socket.to(roomName).emit("welcome", socket.nickname);
+  });
+  socket.on("disconnecting", () => {
+    socket.rooms.forEach((room) =>
+      socket.to(room).emit("bye", socket.nickname)
+    );
+  });
+  socket.on("new_message", (msg, room, done) => {
+    socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+    done();
   });
 });
-server.listen(3000, handleListen);
+
+/* const sockets = [];
+wss.on("connection", (socket) => {
+  sockets.push(socket);
+  socket["nickname"] = "Anon";
+  console.log("Connected to Browser");
+  socket.on("close", () => console.log("Discconected to Browser"));
+  socket.on("message", (msg) => {
+    const message = JSON.parse(msg);
+    switch (message.type) {
+      case "new_message":
+        sockets.forEach((aSocket) =>
+          aSocket.send(
+            `${socket.nickname}: ${message.playload}`.toString("utf8")
+          )
+        );
+        break;
+      case "nickname":
+        socket["nickname"] = message.playload;
+        break;
+    }
+  });
+}); */
+
+httpServer.listen(3000, handleListen);
