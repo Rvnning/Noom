@@ -11,11 +11,13 @@ html(lang="en")
             h1 Noom
         main
             div#welcome
-                form
+                form#room
                     input#nick(placeholder="nickname", required, type="text")
                     input#name(placeholder="room name", required, type="text")
                     button Enter Room
-            div#room
+                h4 Open Rooms:
+                ul
+            div#chat
                 h3
                 ul
                 form#msg
